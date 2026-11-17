@@ -25,6 +25,7 @@ public:
 protected:
     void closeEvent(QCloseEvent* event) override;
     void showEvent(QShowEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     void changeEvent(QEvent* event) override;
 
 private slots:
@@ -83,5 +84,6 @@ private:
     bool m_loading = false;  // true while widgets are being filled from the prefix (do not save)
 
     QProgressBar* m_busy = nullptr;
+    int m_corrections = 0;  // consecutive attempts to undo a too small size
     bool m_sized = false;  // the initial size has been set
 };

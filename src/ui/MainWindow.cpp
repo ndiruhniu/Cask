@@ -152,6 +152,22 @@ void MainWindow::showEvent(QShowEvent* event)
     QTimer::singleShot(0, this, [this] { fitToContent(); });
 }
 
+// Some window managers (tiling, snapping to a screen corner) ignore the minimum size. The window then
+// asks for its minimum size back, a few times at most so it never fights the window manager.
+void MainWindow::resizeEvent(QResizeEvent* event)
+{
+    QMainWindow::resizeEvent(event);
+    const QSize min = minimumSizeHint();
+    if (width() >= min.width() && height() >= min.height()) {
+        m_corrections = 0;
+        return;
+    }
+    if (!isVisible() || m_corrections >= 3)
+        return;
+    ++m_corrections;
+    QTimer::singleShot(0, this, [this] { resize(size().expandedTo(minimumSizeHint())); });
+}
+
 void MainWindow::changeEvent(QEvent* event)
 {
     QMainWindow::changeEvent(event);
