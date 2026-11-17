@@ -348,7 +348,6 @@ void MainWindow::buildUi()
     auto* scroll = new QScrollArea;
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
-    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     scroll->setWidget(m_details);
     m_central->addWidget(scroll);
     m_central->setStretchFactor(0, 0);
@@ -359,8 +358,9 @@ void MainWindow::buildUi()
     fitToContent();
 }
 
-// The window may not become smaller than what the details panel needs (nothing is cut off or
-// hidden behind a scroll bar) and starts at the size that exactly fits it.
+// The window may not become smaller than what the details panel needs and starts at the size that
+// exactly fits it. Only the window itself carries this minimum: if a window manager still makes it
+// smaller (tiling, snapping to a corner), the details panel scrolls instead of being cut off.
 void MainWindow::fitToContent()
 {
     m_details->ensurePolished();  // hints are only reliable after the style has been applied
@@ -368,20 +368,23 @@ void MainWindow::fitToContent()
     const int handle = m_central->handleWidth();
     const QSize detailsMin = m_details->minimumSizeHint();
     const QSize detailsWanted = m_details->sizeHint().expandedTo(detailsMin);
-
-    m_central->widget(1)->setMinimumSize(detailsMin);
     const QSize centralMin(leftMin + handle + detailsMin.width(), detailsMin.height());
-    m_central->setMinimumSize(centralMin);
 
+    // Measure the window's own decoration (tool bar etc.) with the central minimum temporarily set.
+    m_central->widget(1)->setMinimumSize(0, 0);
+    m_central->setMinimumSize(centralMin);
     layout()->activate();
-    const QSize chrome = minimumSizeHint() - centralMin;  // tool bar, status bar, frame
+    const QSize chrome = minimumSizeHint() - centralMin;
+    m_central->setMinimumSize(0, 0);
+    setMinimumSize(chrome + centralMin);
+
     const QSize wanted = chrome + QSize(leftMin + 40 + handle + detailsWanted.width(), detailsWanted.height());
     if (!m_sized) {  // later calls keep the size and splitter position the user has chosen
         m_central->setSizes({leftMin + 40, detailsWanted.width()});
-        resize(wanted.expandedTo(minimumSizeHint()));
+        resize(wanted.expandedTo(minimumSize()));
         m_sized = true;
     } else {
-        resize(size().expandedTo(minimumSizeHint()));  // the minimum may have grown (new style or font)
+        resize(size().expandedTo(minimumSize()));  // the minimum may have grown (new style or font)
     }
 }
 
