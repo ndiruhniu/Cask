@@ -57,6 +57,62 @@ jobs:
           name: Cask-linux-x86_64
           path: Cask-linux-x86_64.tar.gz
 
+  # The portable archive must start on other distributions too, with the real xcb platform plugin on a
+  # virtual X server (the offscreen test above never touches X11, XKB or the system libraries).
+  # Each image has the runtime libraries of a desktop with Qt 6 installed, like a user's machine.
+  distros:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Arch
+            image: archlinux:latest
+            install: pacman -Syu --noconfirm qt6-base xorg-server-xvfb tar gzip
+          - name: Fedora
+            image: fedora:latest
+            install: dnf install -y qt6-qtbase-gui xorg-x11-server-Xvfb tar gzip
+          - name: Debian
+            image: debian:trixie
+            install: apt-get update && apt-get install -y --no-install-recommends libqt6widgets6 xvfb xkb-data tar gzip
+          - name: Ubuntu
+            image: ubuntu:24.04
+            install: apt-get update && apt-get install -y --no-install-recommends libqt6widgets6 xvfb xkb-data tar gzip
+          - name: openSUSE
+            image: opensuse/tumbleweed:latest
+            install: zypper --non-interactive install --no-recommends libQt6Widgets6 xorg-x11-server-Xvfb xkeyboard-config tar gzip
+    name: Start on ${{ matrix.name }}
+    container: ${{ matrix.image }}
+    steps:
+      - name: Install runtime libraries
+        run: ${{ matrix.install }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Cask-linux-x86_64
+
+      - name: Unpack
+        run: tar -xzf Cask-linux-x86_64.tar.gz
+
+      - name: Libraries resolve
+        run: |
+          for f in Cask/cask Cask/lib/plugins/platforms/libqxcb.so; do
+            if ldd "$f" | grep 'not found'; then echo "unresolved libraries in $f"; exit 1; fi
+          done
+
+      # Exit code 124 means the process was still alive when the timeout hit, i.e. the window started.
+      - name: Start with the xcb platform
+        run: |
+          export HOME=/tmp/home XDG_RUNTIME_DIR=/tmp/runtime DISPLAY=:99 QT_QPA_PLATFORM=xcb
+          mkdir -p "$HOME" "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+          Xvfb :99 -screen 0 1280x800x24 >/tmp/xvfb.log 2>&1 &
+          sleep 2
+          status=0
+          timeout 5 Cask/cask || status=$?
+          [ "$status" -eq 124 ] || { echo "Cask did not start (exit code $status)"; exit 1; }
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: linux
