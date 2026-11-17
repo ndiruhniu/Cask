@@ -19,11 +19,13 @@ for p in libqxcb.so libqoffscreen.so libqwayland-generic.so; do
 done
 cp -L "$QT_PLUGINS"/xcbglintegrations/*.so "$PLUG/xcbglintegrations/" 2>/dev/null || true
 
-# Which libraries to bundle (the rest, e.g. glibc/libGL, comes from the system)
+# Which libraries to bundle (the rest, e.g. glibc/libGL, comes from the system).
+# libxkbcommon and libxkbcommon-x11 must come from the same build: the x11 part uses the internals of the
+# main library, so a bundled -x11 next to a different system libxkbcommon crashes while Qt reads the keyboard.
 want() {
   case "$(basename "$1")" in
     libQt6*|libicu*|libdouble-conversion*|libpcre2-16*|libmd4c*|libb2*) return 0 ;;
-    libxcb-cursor*|libxcb-icccm*|libxcb-image*|libxcb-keysyms*|libxcb-render-util*|libxcb-shape*|libxcb-xkb*|libxkbcommon-x11*) return 0 ;;
+    libxcb-cursor*|libxcb-icccm*|libxcb-image*|libxcb-keysyms*|libxcb-render-util*|libxcb-shape*|libxcb-xkb*|libxkbcommon*) return 0 ;;
     *) return 1 ;;
   esac
 }
