@@ -25,7 +25,7 @@ cp -L "$QT_PLUGINS"/xcbglintegrations/*.so "$PLUG/xcbglintegrations/" 2>/dev/nul
 want() {
   case "$(basename "$1")" in
     libQt6*|libicu*|libdouble-conversion*|libpcre2-16*|libmd4c*|libb2*) return 0 ;;
-    libxcb-cursor*|libxcb-icccm*|libxcb-image*|libxcb-keysyms*|libxcb-render-util*|libxcb-shape*|libxcb-xkb*|libxkbcommon*) return 0 ;;
+    libxcb-*|libxkbcommon*) return 0 ;;  # all xcb extension libraries of the plugin (not libxcb.so itself)
     *) return 1 ;;
   esac
 }
