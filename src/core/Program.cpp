@@ -164,6 +164,8 @@ QString windowsToUnix(const QString& prefixPath, const QString& windowsPath)
     }
     static const QRegularExpression sep(QStringLiteral("[\\\\/]+"));
     for (const QString& part : windowsPath.mid(3).split(sep, Qt::SkipEmptyParts)) {
+        if (part == QLatin1String(".."))
+            return {};
         cur = findIgnoringCase(cur, part);
         if (cur.isEmpty())
             return {};

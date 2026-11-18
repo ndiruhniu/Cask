@@ -198,7 +198,7 @@ void ProgramsPanel::rebuild()
 
 void ProgramsPanel::updateRunning()
 {
-    if (m_prefix.isEmpty() || !isVisible())
+    if (m_prefix.isEmpty() || !isVisible() || window()->isMinimized())
         return;
     m_running = PrefixManager::runningImages(m_path);
     const bool any = !m_running.isEmpty();
