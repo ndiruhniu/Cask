@@ -86,7 +86,20 @@ bool isUninstaller(const QString& file)
 
 QString resolve(const QString& prefixPath, const QString& stored)
 {
-    return QDir::isAbsolutePath(stored) ? QDir::cleanPath(stored) : QDir::cleanPath(prefixPath + "/" + stored);
+    const QString file =
+        QDir::isAbsolutePath(stored) ? QDir::cleanPath(stored) : QDir::cleanPath(prefixPath + "/" + stored);
+    if (QFileInfo::exists(file))
+        return file;
+    // Programs rename their files (Steam turns Steam.exe into steam.exe): look for it ignoring case.
+    const QString root = QDir::isAbsolutePath(stored) ? QStringLiteral("/") : QDir::cleanPath(prefixPath);
+    QString cur = root;
+    static const QRegularExpression sep(QStringLiteral("/+"));
+    for (const QString& part : (QDir::isAbsolutePath(stored) ? file.mid(1) : QDir::cleanPath(stored)).split(sep, Qt::SkipEmptyParts)) {
+        cur = findIgnoringCase(cur, part);
+        if (cur.isEmpty())
+            return file;
+    }
+    return QDir::cleanPath(cur);
 }
 
 QString store(const QString& prefixPath, const QString& absolute)
