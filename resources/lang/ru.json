@@ -132,7 +132,6 @@
   "Cancelling…": "Отмена…",
   "Programs": "Программы",
   "Add program…": "Добавить программу…",
-  "No programs yet. Programs installed in this prefix appear here automatically, or add one with the button below.": "Пока нет программ. Программы, установленные в этом префиксе, появятся здесь автоматически, или добавьте программу кнопкой ниже.",
   "Run": "Запустить",
   "Stop": "Остановить",
   "Run in terminal": "Запустить в терминале",
@@ -141,5 +140,7 @@
   "This program is already in the list.": "Эта программа уже есть в списке.",
   "Exit code:": "Код выхода:",
   "Press Enter to close this window.": "Нажмите Enter, чтобы закрыть окно.",
-  "No terminal emulator was found. Install one (for example konsole, gnome-terminal or xterm) or set the TERMINAL environment variable.": "Не найден эмулятор терминала. Установите его (например, konsole, gnome-terminal или xterm) или задайте переменную окружения TERMINAL."
+  "No terminal emulator was found. Install one (for example konsole, gnome-terminal or xterm) or set the TERMINAL environment variable.": "Не найден эмулятор терминала. Установите его (например, konsole, gnome-terminal или xterm) или задайте переменную окружения TERMINAL.",
+  "No programs yet": "Пока нет программ",
+  "Programs installed in this prefix appear here automatically. You can also add one with the button below.": "Программы, установленные в этом префиксе, появляются здесь автоматически. Программу можно добавить и кнопкой ниже."
 }

@@ -62,7 +62,9 @@ QString wideAt(const QByteArray& d, quint32 off)
 // Folders that Wine and Windows fill with their own shortcuts: not the user's programs.
 bool isSystemPath(const QString& prefixPath, const QString& file)
 {
-    const QString rel = QDir(prefixPath + "/drive_c").relativeFilePath(file).toLower();
+    const QString rel = QDir(QFileInfo(prefixPath + "/drive_c").canonicalFilePath())
+                            .relativeFilePath(QFileInfo(file).canonicalFilePath())
+                            .toLower();
     if (rel.startsWith(QLatin1String("windows/")))
         return true;
     static const QStringList skip{
@@ -140,11 +142,12 @@ QString windowsToUnix(const QString& prefixPath, const QString& windowsPath)
         || (windowsPath[2] != QLatin1Char('\\') && windowsPath[2] != QLatin1Char('/')))
         return {};
     const QChar letter = windowsPath[0].toLower();
-    QString cur = prefixPath + "/dosdevices/" + letter + QLatin1Char(':');
-    if (!QFileInfo::exists(cur)) {
-        if (letter != QLatin1Char('c'))
+    // C: is the prefix's own drive_c (stored paths then stay inside the prefix folder).
+    QString cur = prefixPath + "/drive_c";
+    if (letter != QLatin1Char('c') || !QFileInfo(cur).isDir()) {
+        cur = prefixPath + "/dosdevices/" + letter + QLatin1Char(':');
+        if (!QFileInfo::exists(cur))
             return {};
-        cur = prefixPath + "/drive_c";
     }
     static const QRegularExpression sep(QStringLiteral("[\\\\/]+"));
     for (const QString& part : windowsPath.mid(3).split(sep, Qt::SkipEmptyParts)) {

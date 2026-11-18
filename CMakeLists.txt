@@ -30,6 +30,7 @@ add_executable(cask
     src/ui/MainWindow.h      src/ui/MainWindow.cpp
     src/ui/ProgramsPanel.h   src/ui/ProgramsPanel.cpp
     src/ui/IconButton.h
+    src/ui/ElidedLabel.h
     src/ui/NewPrefixDialog.h
     src/ui/SettingsDialog.h
     src/ui/EnvDialog.h

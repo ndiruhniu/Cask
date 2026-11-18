@@ -17,6 +17,7 @@ class QSplitter;
 class QToolBar;
 class QWidget;
 
+class ElidedLabel;
 class ProgramsPanel;
 
 class MainWindow : public QMainWindow {
@@ -51,7 +52,7 @@ private:
     struct CompRow {
         QString type;
         QComboBox* versions = nullptr;
-        QLabel* hint = nullptr;
+        ElidedLabel* hint = nullptr;
     };
 
     void buildUi();
@@ -73,7 +74,7 @@ private:
     QWidget* m_details = nullptr;
     ProgramsPanel* m_programs = nullptr;
     QLabel* m_name = nullptr;
-    QLabel* m_path = nullptr;
+    ElidedLabel* m_path = nullptr;
     QLabel* m_arch = nullptr;
     QComboBox* m_runnerBox = nullptr;
     QList<CompRow> m_rows;

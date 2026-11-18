@@ -5,6 +5,7 @@
 #include "core/LaunchSettings.h"
 #include "core/Runner.h"
 #include "ui/EnvDialog.h"
+#include "ui/ElidedLabel.h"
 #include "ui/NewPrefixDialog.h"
 #include "ui/ProgramsPanel.h"
 #include "ui/SettingsDialog.h"
@@ -241,9 +242,7 @@ void MainWindow::buildUi()
     auto* info = new QGroupBox(tr("Prefix"));
     auto* form = new QFormLayout(info);
     m_name = new QLabel;
-    m_path = new QLabel;
-    m_path->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    m_path->setWordWrap(true);
+    m_path = new ElidedLabel;
     m_arch = new QLabel;
     // Wine changes the same way as components: a selection in the list is applied immediately.
     m_runnerBox = new QComboBox;
@@ -298,9 +297,8 @@ void MainWindow::buildUi()
         CompRow cr;
         cr.type = t.id;
         cr.versions = new QComboBox;
-        cr.hint = new QLabel;
+        cr.hint = new ElidedLabel;
         cr.hint->setEnabled(false);  // dimmed color
-        cr.hint->setWordWrap(true);
         cr.hint->hide();  // shown only when there is something to say
         cr.versions->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         grid->addWidget(new QLabel(t.title), row * 2, 0);
@@ -495,12 +493,12 @@ void MainWindow::onSelected()
     m_programs->setPrefix(po ? name : QString());
     if (!po) {
         m_name->clear();
-        m_path->clear();
+        m_path->setFullText(QString());
         m_arch->clear();
         m_runnerBox->clear();
         for (CompRow& cr : m_rows) {
             cr.versions->clear();
-            cr.hint->clear();
+            cr.hint->setFullText(QString());
             cr.hint->hide();
         }
         m_loading = true;
@@ -514,7 +512,7 @@ void MainWindow::onSelected()
     }
     const Prefix& p = *po;
     m_name->setText(p.name);
-    m_path->setText(p.path);
+    m_path->setFullText(p.path);
     m_arch->setText(p.arch == "win64" ? "64-bit (win64)" : "32-bit (win32)");
 
     m_runnerBox->clear();
@@ -545,7 +543,7 @@ void MainWindow::onSelected()
             }
         }
         cr.versions->setCurrentIndex(sel);
-        cr.hint->setText(vers.isEmpty()
+        cr.hint->setFullText(vers.isEmpty()
                              ? tr("Put version folders into %1").arg(Config::instance().componentsDir(cr.type))
                              : QString());
         cr.hint->setVisible(vers.isEmpty());

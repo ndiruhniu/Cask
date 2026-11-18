@@ -42,6 +42,13 @@ Cask/
   version applies it (DLLs are copied to `system32`/`syswow64`, originals are backed up as `*.cask-bak`,
   DLL overrides are set through `regedit`); picking "Disabled" removes the component and restores the originals.
 - Run programs. Tools: Explorer, Control panel, winecfg, regedit, uninstaller, task manager, winetricks.
+- Programs list (the bottom panel of a prefix). Programs installed in the prefix appear in it automatically:
+  Cask reads the Start Menu shortcuts (`.lnk`) of the prefix and lists the `.exe` files they point to
+  (Wine's own programs, the Windows folder and uninstallers are left out). Add your own with "Add program...".
+  Click a name to rename it (the default is the file name), drag rows to reorder them, hover a row to see the
+  path. Buttons: Run (turns into Stop while the program is running), Run in terminal (shows the Wine output),
+  Show in folder, Remove from the list (a removed program is not added again automatically; the list and the
+  hidden entries are kept in `cask.json`).
 - The prefix list can be reordered by drag and drop. The order is remembered in
   `prefixes/.cask-order.json` and moves together with the prefixes.
 - The Wine profile folders (Desktop, Documents, Downloads, Music, Pictures, Videos...) do not point to your

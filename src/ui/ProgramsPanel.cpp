@@ -44,9 +44,9 @@ ProgramsPanel::ProgramsPanel(PrefixManager* mgr, QWidget* parent) : QGroupBox(tr
     m_list->setDragDropMode(QAbstractItemView::InternalMove);
     m_list->setDefaultDropAction(Qt::MoveAction);
 
-    auto* hint = new QLabel(tr("No programs yet. Programs installed in this prefix appear here automatically, "
-                               "or add one with the button below."));
-    hint->setWordWrap(true);
+    auto* hint = new QLabel(tr("No programs yet"));
+    hint->setToolTip(tr("Programs installed in this prefix appear here automatically. You can also add one "
+                        "with the button below."));
     hint->setAlignment(Qt::AlignCenter);
     hint->setEnabled(false);  // dimmed
 
