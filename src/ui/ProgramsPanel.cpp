@@ -27,7 +27,14 @@ public:
     using QListWidget::QListWidget;
     QSize sizeHint() const override { return {200, 112}; }
     QSize minimumSizeHint() const override { return {100, 84}; }
+    bool isDragging() const { return state() == DraggingState; }  // state() is protected
 };
+
+// m_list is always a ShortList.
+bool dragging(QListWidget* list)
+{
+    return static_cast<ShortList*>(list)->isDragging();
+}
 
 }  // namespace
 
@@ -90,7 +97,7 @@ void ProgramsPanel::setPrefix(const QString& name)
 
 void ProgramsPanel::rescan()
 {
-    if (m_prefix.isEmpty() || m_editing >= 0 || m_list->state() == QAbstractItemView::DraggingState)
+    if (m_prefix.isEmpty() || m_editing >= 0 || dragging(m_list))
         return;
     m_mgr->syncPrograms(m_prefix);
     reload(false);
@@ -198,7 +205,7 @@ void ProgramsPanel::rebuild()
 
 void ProgramsPanel::updateRunning()
 {
-    if (m_prefix.isEmpty() || !isVisible() || window()->isMinimized() || m_list->state() == QAbstractItemView::DraggingState)
+    if (m_prefix.isEmpty() || !isVisible() || window()->isMinimized() || dragging(m_list))
         return;
     m_running = PrefixManager::runningImages(m_path);
     const bool any = !m_running.isEmpty();
