@@ -90,7 +90,7 @@ void ProgramsPanel::setPrefix(const QString& name)
 
 void ProgramsPanel::rescan()
 {
-    if (m_prefix.isEmpty() || m_editing >= 0)
+    if (m_prefix.isEmpty() || m_editing >= 0 || m_list->state() == QAbstractItemView::DraggingState)
         return;
     m_mgr->syncPrograms(m_prefix);
     reload(false);
@@ -198,7 +198,7 @@ void ProgramsPanel::rebuild()
 
 void ProgramsPanel::updateRunning()
 {
-    if (m_prefix.isEmpty() || !isVisible() || window()->isMinimized())
+    if (m_prefix.isEmpty() || !isVisible() || window()->isMinimized() || m_list->state() == QAbstractItemView::DraggingState)
         return;
     m_running = PrefixManager::runningImages(m_path);
     const bool any = !m_running.isEmpty();

@@ -143,7 +143,8 @@ private:
                 onFinished(-1, QProcess::CrashExit);
         });
         m_proc->start();
-        m_proc->closeWriteChannel();  // no questions should appear in the terminal
+        if (m_proc)  // a failed start has already finished (and cleared) the process
+            m_proc->closeWriteChannel();  // no questions should appear in the terminal
         updateButtons();
     }
 

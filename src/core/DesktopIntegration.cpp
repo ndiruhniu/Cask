@@ -162,7 +162,8 @@ bool install(const QString& appsDir, const QString& exePath, QString* err)
 
     const QString cachePath = appsDir + QStringLiteral("/mimeinfo.cache");
     QByteArray cur;
-    readFile(cachePath, &cur);
+    if (!readFile(cachePath, &cur))
+        return true;  // no cache: the desktop reads the .desktop files itself; do not create a cache of our own
     return writeIfChanged(cachePath, updateMimeCache(cur, true), err);
 }
 
