@@ -40,7 +40,12 @@ bool Prefix::save() const
 
     QJsonArray progs;
     for (const Program& pr : programs)
-        progs.append(QJsonObject{{"name", pr.name}, {"path", pr.path}});
+        {
+        QJsonObject po{{"name", pr.name}, {"path", pr.path}};
+        if (pr.automatic)
+            po["auto"] = true;
+        progs.append(po);
+    }
     o["programs"] = progs;
     o["hiddenPrograms"] = QJsonArray::fromStringList(hiddenPrograms);
 
@@ -93,7 +98,7 @@ std::optional<Prefix> Prefix::load(const QString& dir)
         const QString path = po.value("path").toString();
         if (path.isEmpty())
             continue;
-        p.programs.append({po.value("name").toString(QFileInfo(path).fileName()), path});
+        p.programs.append({po.value("name").toString(QFileInfo(path).fileName()), path, po.value("auto").toBool()});
     }
     for (const QJsonValue& v : o.value("hiddenPrograms").toArray())
         if (!v.toString().isEmpty())

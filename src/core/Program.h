@@ -10,8 +10,11 @@
 struct Program {
     QString name;
     QString path;
+    // Found by Cask in the Start Menu (not added by the user): it goes away when the file is deleted
+    // (the program was uninstalled). A program the user added stays in the list.
+    bool automatic = false;
 
-    bool operator==(const Program& o) const { return name == o.name && path == o.path; }
+    bool operator==(const Program& o) const { return name == o.name && path == o.path && automatic == o.automatic; }
 };
 
 namespace Programs {

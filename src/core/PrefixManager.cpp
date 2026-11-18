@@ -843,11 +843,23 @@ bool PrefixManager::syncPrograms(const QString& name)
         known.insert(Programs::resolve(p->path, h).toLower());
 
     bool changed = false;
+    // Programs found automatically disappear when their file does (the program was uninstalled).
+    // Only files inside the prefix are checked: a program on another drive may just be unmounted.
+    if (QFileInfo(p->path + "/drive_c").isDir()) {
+        for (int i = p->programs.size() - 1; i >= 0; --i) {
+            const Program& pr = p->programs.at(i);
+            if (pr.automatic && !QDir::isAbsolutePath(pr.path)
+                && !QFileInfo::exists(Programs::resolve(p->path, pr.path))) {
+                p->programs.removeAt(i);
+                changed = true;
+            }
+        }
+    }
     for (const QString& file : Programs::discover(p->path)) {
         if (known.contains(file.toLower()))
             continue;
         known.insert(file.toLower());
-        p->programs.append({QFileInfo(file).fileName(), Programs::store(p->path, file)});
+        p->programs.append({QFileInfo(file).fileName(), Programs::store(p->path, file), true});
         changed = true;
     }
     return changed && p->save();
