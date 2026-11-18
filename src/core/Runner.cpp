@@ -15,6 +15,8 @@ QList<Runner> available()
     QDir d(Config::instance().runnersDir());
     const QStringList names = d.entryList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::IgnoreCase);
     for (const QString& name : names) {
+        if (name.compare(QLatin1String("system"), Qt::CaseInsensitive) == 0)
+            continue;  // the name of the system Wine
         const QString bin = d.filePath(name) + "/bin";
         QString wine = bin + "/wine";
         if (!QFileInfo(wine).isExecutable())

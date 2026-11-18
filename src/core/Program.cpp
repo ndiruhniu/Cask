@@ -164,6 +164,8 @@ QString windowsToUnix(const QString& prefixPath, const QString& windowsPath)
     }
     static const QRegularExpression sep(QStringLiteral("[\\\\/]+"));
     for (const QString& part : windowsPath.mid(3).split(sep, Qt::SkipEmptyParts)) {
+        if (part == QLatin1String(".."))
+            return {};
         cur = findIgnoringCase(cur, part);
         if (cur.isEmpty())
             return {};
@@ -183,10 +185,13 @@ QStringList discover(const QString& prefixPath)
     }
 
     QStringList out;
-    QSet<QString> seen;
+    QSet<QString> seen, seenMenus;
     for (const QString& menu : std::as_const(menus)) {
         if (!QFileInfo(menu).isDir())
             continue;
+        if (seenMenus.contains(QFileInfo(menu).canonicalFilePath()))
+            continue;  // the same folder reached through a symlink (Application Data -> AppData/Roaming)
+        seenMenus.insert(QFileInfo(menu).canonicalFilePath());
         QDirIterator it(menu, QDir::Files, QDirIterator::Subdirectories);  // does not follow links
         while (it.hasNext()) {
             const QString lnk = it.next();

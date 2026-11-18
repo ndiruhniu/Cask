@@ -10,7 +10,7 @@ LIB="$DIR/lib"
 PLUG="$LIB/plugins"
 mkdir -p "$LIB" "$PLUG/platforms" "$PLUG/xcbglintegrations"
 
-QT_PLUGINS="$(find /usr/lib -type d -path '*/qt6/plugins' | head -n1)"
+QT_PLUGINS="$(find /usr/lib -type d -path '*/qt6/plugins' -print -quit)"
 [ -n "$QT_PLUGINS" ] || { echo "Qt plugins dir not found" >&2; exit 1; }
 
 # Platform plugins

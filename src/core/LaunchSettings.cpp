@@ -4,8 +4,11 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QProcessEnvironment>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QStandardPaths>
 
 namespace LaunchSettings {
@@ -21,7 +24,7 @@ QStringList localePresets()
 
 bool isValidEnvName(const QString& name)
 {
-    static const QRegularExpression re(QStringLiteral("^[A-Za-z_][A-Za-z0-9_]*$"));
+    static const QRegularExpression re(QStringLiteral("^[A-Za-z_][A-Za-z0-9_]*\\z"));
     return re.match(name).hasMatch();
 }
 
@@ -109,33 +112,27 @@ bool applyPortableMangohud(QProcessEnvironment& env)
     const QString layerDir = QDir(mangohudDir()).absoluteFilePath(QStringLiteral("layer"));
 
     // The release layer manifest points to /usr/lib/mangohud, so we write our own, with the path to our copy.
-    const QByteArray json = QByteArrayLiteral(
-                                "{\n"
-                                "  \"file_format_version\": \"1.0.0\",\n"
-                                "  \"layer\": {\n"
-                                "    \"name\": \"VK_LAYER_MANGOHUD_overlay_x86_64\",\n"
-                                "    \"type\": \"GLOBAL\",\n"
-                                "    \"api_version\": \"1.3.0\",\n"
-                                "    \"library_path\": \"") +
-                            lib.absoluteFilePath(QStringLiteral("libMangoHud.so")).toUtf8() +
-                            QByteArrayLiteral(
-                                "\",\n"
-                                "    \"implementation_version\": \"1\",\n"
-                                "    \"description\": \"Vulkan Hud Overlay\",\n"
-                                "    \"functions\": {\"vkNegotiateLoaderLayerInterfaceVersion\": "
-                                "\"vkNegotiateLoaderLayerInterfaceVersion\"},\n"
-                                "    \"enable_environment\": {\"MANGOHUD\": \"1\"},\n"
-                                "    \"disable_environment\": {\"DISABLE_MANGOHUD\": \"1\"}\n"
-                                "  }\n"
-                                "}\n");
+    const QJsonObject layer{
+        {"name", "VK_LAYER_MANGOHUD_overlay_x86_64"},
+        {"type", "GLOBAL"},
+        {"api_version", "1.3.0"},
+        {"library_path", lib.absoluteFilePath(QStringLiteral("libMangoHud.so"))},
+        {"implementation_version", "1"},
+        {"description", "Vulkan Hud Overlay"},
+        {"functions", QJsonObject{{"vkNegotiateLoaderLayerInterfaceVersion", "vkNegotiateLoaderLayerInterfaceVersion"}}},
+        {"enable_environment", QJsonObject{{"MANGOHUD", "1"}}},
+        {"disable_environment", QJsonObject{{"DISABLE_MANGOHUD", "1"}}},
+    };
+    const QByteArray json =
+        QJsonDocument(QJsonObject{{"file_format_version", "1.0.0"}, {"layer", layer}}).toJson(QJsonDocument::Indented);
     QDir().mkpath(layerDir);
     const QString jsonPath = layerDir + QStringLiteral("/MangoHud.x86_64.json");
     QFile existing(jsonPath);
     const bool same = existing.open(QIODevice::ReadOnly) && existing.readAll() == json;
     existing.close();
     if (!same) {
-        QFile f(jsonPath);
-        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate) || f.write(json) != json.size())
+        QSaveFile f(jsonPath);  // atomic: a game starting at the same time never reads half a file
+        if (!f.open(QIODevice::WriteOnly) || f.write(json) != json.size() || !f.commit())
             return false;
     }
 

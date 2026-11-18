@@ -69,6 +69,21 @@ void addDllOverride(QProcessEnvironment& e, const QString& entry)
     e.insert(QStringLiteral("WINEDLLOVERRIDES"), cur.isEmpty() ? entry : cur + QLatin1Char(';') + entry);
 }
 
+// A prefix folder: cask.json is removed last, so a prefix that could not be deleted completely stays in
+// the list (it is recognized by cask.json) and the deletion can be repeated.
+bool removePrefixDir(const QString& path)
+{
+    bool ok = true;
+    const auto entries =
+        QDir(path).entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
+    for (const QFileInfo& e : entries)
+        if (e.fileName() != QLatin1String("cask.json"))
+            ok = removeTree(e.absoluteFilePath()) && ok;
+    if (!ok)
+        return false;
+    return removeTree(path);
+}
+
 }  // namespace
 
 PrefixManager::PrefixManager(QObject* parent) : QObject(parent) {}
@@ -344,7 +359,7 @@ bool PrefixManager::create(const QString& name, const QString& runner, const QSt
 {
     if (!checkIdle(err))
         return false;
-    static const QRegularExpression re(QStringLiteral("^[\\p{L}\\p{N}][\\p{L}\\p{N} _.\\-]{0,63}$"));
+    static const QRegularExpression re(QStringLiteral("^[\\p{L}\\p{N}][\\p{L}\\p{N} _.\\-]{0,63}\\z"));
     if (!re.match(name).hasMatch()) {
         setErr(err, tr("Invalid name. Letters, digits, space, _ . - are allowed (up to 64 characters)."));
         return false;
@@ -376,6 +391,7 @@ bool PrefixManager::create(const QString& name, const QString& runner, const QSt
     p.arch = arch;
     p.created = QDateTime::currentDateTime();
     if (!p.save()) {
+        QDir().rmdir(path);
         setErr(err, tr("Could not write cask.json"));
         return false;
     }
@@ -411,7 +427,7 @@ bool PrefixManager::remove(const QString& name, QString* err)
     // Stop all prefix processes so nothing is left in the folder being deleted.
     stopProcesses(*p);
 
-    if (!removeTree(p->path)) {
+    if (!removePrefixDir(p->path)) {
         setErr(err, tr("Not everything could be removed from %1").arg(p->path));
         emit changed();
         return false;
@@ -582,6 +598,7 @@ bool PrefixManager::applyComponent(const QString& name, const QString& type, con
         if (QFile::exists(dst) && !QFile::exists(dst + kBak))
             QFile::rename(dst, dst + kBak);  // keep the original once
         QFile::remove(dst);
+        a.files << it.rel;  // before the copy: a failed copy is rolled back with this file too
         if (!QFile::copy(it.src, dst)) {
             p.components.insert(type, a);
             restoreFiles(p, type);
@@ -591,7 +608,6 @@ bool PrefixManager::applyComponent(const QString& name, const QString& type, con
             return false;
         }
         QFile::setPermissions(dst, QFile::permissions(dst) | QFile::WriteOwner);
-        a.files << it.rel;
         // the file now belongs to this component (the last one applied wins)
         for (auto c = p.components.begin(); c != p.components.end(); ++c)
             c->files.removeAll(it.rel);
@@ -938,9 +954,11 @@ int PrefixManager::stopProgram(const QString& prefixPath, const QString& imageNa
             ++n;
     if (n > 0) {
         // What ignores SIGTERM is finished off after a while (only processes that still belong to the program).
-        QTimer::singleShot(3000, this, [prefixPath, imageName] {
+        QTimer::singleShot(3000, this, [prefixPath, imageName, pids] {
+            // Only the processes that were asked to stop: a new instance started meanwhile is left alone.
             for (qint64 pid : imageProcesses(prefixPath, imageName))
-                ::kill(static_cast<pid_t>(pid), SIGKILL);
+                if (pids.contains(pid))
+                    ::kill(static_cast<pid_t>(pid), SIGKILL);
         });
     }
     return n;
