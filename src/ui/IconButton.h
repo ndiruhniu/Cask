@@ -44,12 +44,12 @@ private:
     void rebuild()
     {
         const qreal dpr = devicePixelRatioF();
-        const qreal size = 16;
+        const int px = 16;
         QIcon icon;
         for (const QIcon::Mode mode : {QIcon::Normal, QIcon::Disabled}) {
             const QColor color = palette().color(mode == QIcon::Normal ? QPalette::Active : QPalette::Disabled,
                                                  QPalette::ButtonText);
-            QPixmap pm(QSize(int(size), int(size)) * dpr);
+            QPixmap pm(QSize(px, px) * dpr);
             pm.setDevicePixelRatio(dpr);
             pm.fill(Qt::transparent);
             QPainter p(&pm);
