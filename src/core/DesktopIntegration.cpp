@@ -55,6 +55,8 @@ QByteArray desktopContent(const QString& exePath)
                        "Name=Cask\n"
                        "GenericName=Wine prefix manager\n"
                        "GenericName[ru]=Менеджер префиксов Wine\n"
+                       "Comment=Minimalist Wine prefix manager\n"
+                       "Comment[ru]=Минималистичный менеджер префиксов Wine\n"
                        "Exec=%1 %f\n"
                        "Icon=wine\n"
                        "Terminal=false\n"
