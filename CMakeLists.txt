@@ -18,6 +18,7 @@ set(CASK_CORE_SOURCES
     src/core/LaunchSettings.h  src/core/LaunchSettings.cpp
     src/core/Runner.h          src/core/Runner.cpp
     src/core/Prefix.h          src/core/Prefix.cpp
+    src/core/Program.h         src/core/Program.cpp
     src/core/PrefixManager.h   src/core/PrefixManager.cpp
     src/core/Winetricks.h      src/core/Winetricks.cpp
     resources/cask.qrc
@@ -27,6 +28,8 @@ add_executable(cask
     src/main.cpp
     ${CASK_CORE_SOURCES}
     src/ui/MainWindow.h      src/ui/MainWindow.cpp
+    src/ui/ProgramsPanel.h   src/ui/ProgramsPanel.cpp
+    src/ui/IconButton.h
     src/ui/NewPrefixDialog.h
     src/ui/SettingsDialog.h
     src/ui/EnvDialog.h

@@ -38,6 +38,12 @@ bool Prefix::save() const
     s["env"] = env;
     o["settings"] = s;
 
+    QJsonArray progs;
+    for (const Program& pr : programs)
+        progs.append(QJsonObject{{"name", pr.name}, {"path", pr.path}});
+    o["programs"] = progs;
+    o["hiddenPrograms"] = QJsonArray::fromStringList(hiddenPrograms);
+
     // Atomic write: a crash in the middle must not leave a half-written cask.json.
     const QByteArray data = QJsonDocument(o).toJson(QJsonDocument::Indented);
     QSaveFile f(path + "/" + kMetaFile);
@@ -81,5 +87,16 @@ std::optional<Prefix> Prefix::load(const QString& dir)
         if (LaunchSettings::isValidEnvName(it.key()) && !LaunchSettings::isReservedEnvName(it.key()))
             p.settings.env.insert(it.key(), it.value().toString());
     }
+
+    for (const QJsonValue& v : o.value("programs").toArray()) {
+        const QJsonObject po = v.toObject();
+        const QString path = po.value("path").toString();
+        if (path.isEmpty())
+            continue;
+        p.programs.append({po.value("name").toString(QFileInfo(path).fileName()), path});
+    }
+    for (const QJsonValue& v : o.value("hiddenPrograms").toArray())
+        if (!v.toString().isEmpty())
+            p.hiddenPrograms << v.toString();
     return p;
 }

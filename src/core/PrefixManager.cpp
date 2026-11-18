@@ -2,6 +2,7 @@
 
 #include "Component.h"
 #include "Config.h"
+#include "Program.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -16,6 +17,7 @@
 #include <QSet>
 #include <QStandardPaths>
 #include <QThread>
+#include <QTimer>
 #include <algorithm>
 #include <climits>
 #include <csignal>
@@ -627,8 +629,8 @@ bool PrefixManager::removeComponent(const QString& name, const QString& type, QS
     return true;
 }
 
-bool PrefixManager::launch(const QString& name, const QStringList& wineArgs, const QString& workDir, QString* err,
-                           bool game)
+bool PrefixManager::prepareLaunch(const QString& name, const QStringList& wineArgs, bool game, LaunchSpec* out,
+                                  QString* err)
 {
     const auto p = find(name);
     if (!p) {
@@ -667,27 +669,243 @@ bool PrefixManager::launch(const QString& name, const QStringList& wineArgs, con
         }
     }
     chain << r->wine;
-    const QString program = chain.takeFirst();
-    const QStringList args = chain + wineArgs;
+    out->program = chain.takeFirst();
+    out->args = chain + wineArgs;
 
-    QProcess proc;
-    proc.setProgram(program);
-    proc.setArguments(args);
-    QProcessEnvironment env = makeEnv(*p, *r, true);
-    if (portableHud && !LaunchSettings::applyPortableMangohud(env))
+    out->env = makeEnv(*p, *r, true);
+    if (portableHud && !LaunchSettings::applyPortableMangohud(out->env))
         emit message(tr("Could not set up the bundled MangoHud in %1. Launching without it.")
                          .arg(LaunchSettings::mangohudDir()),
                      true);
     if (game && p->settings.mangohud)
-        LaunchSettings::applyMangohudConfig(env);
-    proc.setProcessEnvironment(env);
+        LaunchSettings::applyMangohudConfig(out->env);
+    return true;
+}
+
+bool PrefixManager::launch(const QString& name, const QStringList& wineArgs, const QString& workDir, QString* err,
+                           bool game)
+{
+    LaunchSpec spec;
+    if (!prepareLaunch(name, wineArgs, game, &spec, err))
+        return false;
+
+    QProcess proc;
+    proc.setProgram(spec.program);
+    proc.setArguments(spec.args);
+    proc.setProcessEnvironment(spec.env);
     if (!workDir.isEmpty())
         proc.setWorkingDirectory(workDir);
     if (!proc.startDetached()) {
-        setErr(err, tr("Failed to start %1").arg(program));
+        setErr(err, tr("Failed to start %1").arg(spec.program));
         return false;
     }
     return true;
+}
+
+namespace {
+
+QString shellQuote(const QString& s)
+{
+    QString q = s;
+    q.replace(QLatin1Char('\''), QStringLiteral("'\\''"));
+    return QLatin1Char('\'') + q + QLatin1Char('\'');
+}
+
+// A terminal emulator and the arguments that put "sh -c <script>" into it.
+struct Terminal {
+    QString program;
+    QStringList args;
+};
+
+std::optional<Terminal> findTerminal(const QString& script)
+{
+    struct Known {
+        const char* exe;
+        QStringList before;  // between the program and "sh -c script"
+    };
+    static const QList<Known> known{
+        {"gnome-terminal", {"--"}},       {"kgx", {"-e"}},       {"konsole", {"-e"}},
+        {"xfce4-terminal", {"-x"}},       {"mate-terminal", {"-x"}}, {"tilix", {"-e"}},
+        {"lxterminal", {"-e"}},           {"terminator", {"-x"}},    {"alacritty", {"-e"}},
+        {"kitty", {}},                    {"foot", {}},              {"wezterm", {"start", "--"}},
+        {"x-terminal-emulator", {"-e"}},  {"xterm", {"-e"}},         {"urxvt", {"-e"}},
+    };
+    const QStringList sh{QStringLiteral("sh"), QStringLiteral("-c"), script};
+
+    // The user's choice first, then the one that fits the desktop, then the rest.
+    const QString custom = qEnvironmentVariable("TERMINAL");
+    if (!custom.isEmpty()) {
+        const QString exe = QStandardPaths::findExecutable(custom);
+        if (!exe.isEmpty())
+            return Terminal{exe, QStringList{QStringLiteral("-e")} + sh};
+    }
+    const QString desktop = qEnvironmentVariable("XDG_CURRENT_DESKTOP").toLower();
+    QStringList order;
+    if (desktop.contains(QLatin1String("kde")))
+        order << "konsole";
+    else if (desktop.contains(QLatin1String("gnome")))
+        order << "gnome-terminal" << "kgx";
+    else if (desktop.contains(QLatin1String("xfce")))
+        order << "xfce4-terminal";
+    for (const Known& k : known)
+        if (!order.contains(QLatin1String(k.exe)))
+            order << QLatin1String(k.exe);
+    for (const QString& name : std::as_const(order)) {
+        const QString exe = QStandardPaths::findExecutable(name);
+        if (exe.isEmpty())
+            continue;
+        for (const Known& k : known)
+            if (name == QLatin1String(k.exe))
+                return Terminal{exe, k.before + sh};
+    }
+    return std::nullopt;
+}
+
+}  // namespace
+
+bool PrefixManager::launchInTerminal(const QString& name, const QStringList& wineArgs, const QString& workDir,
+                                     QString* err)
+{
+    LaunchSpec spec;
+    if (!prepareLaunch(name, wineArgs, true, &spec, err))
+        return false;
+
+    // The terminal may be started by a server that does not pass our environment on (gnome-terminal), so
+    // the variables that differ from the current ones are set in the command itself.
+    const QProcessEnvironment sys = QProcessEnvironment::systemEnvironment();
+    QStringList cmd{QStringLiteral("env")};
+    for (const QString& key : spec.env.keys())
+        if (spec.env.value(key) != sys.value(key))
+            cmd << shellQuote(key + QLatin1Char('=') + spec.env.value(key));
+    cmd << shellQuote(spec.program);
+    for (const QString& a : std::as_const(spec.args))
+        cmd << shellQuote(a);
+
+    QString script;
+    if (!workDir.isEmpty())
+        script += QStringLiteral("cd %1 2>/dev/null; ").arg(shellQuote(workDir));
+    script += cmd.join(QLatin1Char(' '));
+    script += QStringLiteral("; code=$?; printf '\\n%s %s\\n' %1 \"$code\"; printf '%s\\n' %2; read -r _")
+                  .arg(shellQuote(tr("Exit code:")), shellQuote(tr("Press Enter to close this window.")));
+
+    const auto term = findTerminal(script);
+    if (!term) {
+        setErr(err, tr("No terminal emulator was found. Install one (for example konsole, gnome-terminal or "
+                       "xterm) or set the TERMINAL environment variable."));
+        return false;
+    }
+    QProcess proc;
+    proc.setProgram(term->program);
+    proc.setArguments(term->args);
+    proc.setProcessEnvironment(spec.env);
+    if (!workDir.isEmpty())
+        proc.setWorkingDirectory(workDir);
+    if (!proc.startDetached()) {
+        setErr(err, tr("Failed to start %1").arg(term->program));
+        return false;
+    }
+    return true;
+}
+
+bool PrefixManager::setPrograms(const QString& name, const QList<Program>& programs, const QStringList& hidden,
+                                QString* err)
+{
+    if (!checkIdle(err))
+        return false;
+    auto p = find(name);
+    if (!p) {
+        setErr(err, tr("Prefix not found."));
+        return false;
+    }
+    if (p->programs == programs && p->hiddenPrograms == hidden)
+        return true;
+    p->programs = programs;
+    p->hiddenPrograms = hidden;
+    if (!p->save()) {
+        setErr(err, tr("Could not write cask.json"));
+        return false;
+    }
+    return true;
+}
+
+bool PrefixManager::syncPrograms(const QString& name)
+{
+    if (isBusy())
+        return false;
+    auto p = find(name);
+    if (!p)
+        return false;
+
+    QSet<QString> known;
+    for (const Program& pr : std::as_const(p->programs))
+        known.insert(Programs::resolve(p->path, pr.path).toLower());
+    for (const QString& h : std::as_const(p->hiddenPrograms))
+        known.insert(Programs::resolve(p->path, h).toLower());
+
+    bool changed = false;
+    for (const QString& file : Programs::discover(p->path)) {
+        if (known.contains(file.toLower()))
+            continue;
+        known.insert(file.toLower());
+        p->programs.append({QFileInfo(file).fileName(), Programs::store(p->path, file)});
+        changed = true;
+    }
+    return changed && p->save();
+}
+
+QList<qint64> PrefixManager::imageProcesses(const QString& prefixPath, const QString& imageName)
+{
+    QList<qint64> out;
+    for (qint64 pid : processes(prefixPath)) {
+        QFile f(QStringLiteral("/proc/%1/cmdline").arg(pid));
+        if (!f.open(QIODevice::ReadOnly))
+            continue;
+        // Wine shows the Windows path of the program as the process name ("C:\Program Files\7-Zip\7zFM.exe");
+        // any argument that ends with the image name is taken as a match.
+        for (const QByteArray& arg : f.readAll().split('\0')) {
+            const QString a = QString::fromLocal8Bit(arg);
+            const QString base = a.mid(qMax(a.lastIndexOf(QLatin1Char('\\')), a.lastIndexOf(QLatin1Char('/'))) + 1);
+            if (!base.isEmpty() && base.toLower() == imageName) {
+                out << pid;
+                break;
+            }
+        }
+    }
+    return out;
+}
+
+QStringList PrefixManager::runningImages(const QString& prefixPath)
+{
+    QSet<QString> names;
+    for (qint64 pid : processes(prefixPath)) {
+        QFile f(QStringLiteral("/proc/%1/cmdline").arg(pid));
+        if (!f.open(QIODevice::ReadOnly))
+            continue;
+        for (const QByteArray& arg : f.readAll().split('\0')) {
+            const QString a = QString::fromLocal8Bit(arg);
+            const QString base = a.mid(qMax(a.lastIndexOf(QLatin1Char('\\')), a.lastIndexOf(QLatin1Char('/'))) + 1);
+            if (!base.isEmpty())
+                names.insert(base.toLower());
+        }
+    }
+    return names.values();
+}
+
+int PrefixManager::stopProgram(const QString& prefixPath, const QString& imageName)
+{
+    const QList<qint64> pids = imageProcesses(prefixPath, imageName);
+    int n = 0;
+    for (qint64 pid : pids)
+        if (::kill(static_cast<pid_t>(pid), SIGTERM) == 0)
+            ++n;
+    if (n > 0) {
+        // What ignores SIGTERM is finished off after a while (only processes that still belong to the program).
+        QTimer::singleShot(3000, this, [prefixPath, imageName] {
+            for (qint64 pid : imageProcesses(prefixPath, imageName))
+                ::kill(static_cast<pid_t>(pid), SIGKILL);
+        });
+    }
+    return n;
 }
 
 QStringList PrefixManager::programArgs(const QString& file)

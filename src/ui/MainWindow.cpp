@@ -6,6 +6,7 @@
 #include "core/Runner.h"
 #include "ui/EnvDialog.h"
 #include "ui/NewPrefixDialog.h"
+#include "ui/ProgramsPanel.h"
 #include "ui/SettingsDialog.h"
 #include "ui/WinetricksDialog.h"
 
@@ -171,6 +172,9 @@ void MainWindow::resizeEvent(QResizeEvent* event)
 void MainWindow::changeEvent(QEvent* event)
 {
     QMainWindow::changeEvent(event);
+    // Back from an installer or another window: new programs may have appeared in the prefix.
+    if (event->type() == QEvent::ActivationChange && isActiveWindow() && m_programs)
+        m_programs->rescan();
     if ((event->type() == QEvent::StyleChange || event->type() == QEvent::FontChange) && m_details)
         QTimer::singleShot(0, this, [this] { fitToContent(); });
 }
@@ -252,6 +256,40 @@ void MainWindow::buildUi()
     form->addRow(tr("Wine"), m_runnerBox);
     v->addWidget(info);
 
+    // Actions (right under the prefix information)
+    auto* actions = new QHBoxLayout;
+    auto* runBtn = new QPushButton(tr("Run program…"));
+    connect(runBtn, &QPushButton::clicked, this, &MainWindow::runExe);
+    auto* toolsBtn = new QPushButton(tr("Tools"));
+    auto* menu = new QMenu(toolsBtn);
+    auto addTool = [&](const QString& text, const QStringList& args) {
+        QAction* a = menu->addAction(text);
+        connect(a, &QAction::triggered, this, [this, args] { runTool(args); });
+    };
+    addTool(tr("Explorer"), {"explorer"});
+    addTool(tr("Control panel"), {"control"});
+    addTool(tr("Wine configuration (winecfg)"), {"winecfg"});
+    addTool(tr("Registry editor (regedit)"), {"regedit"});
+    addTool(tr("Add/remove programs"), {"uninstaller"});
+    addTool(tr("Task manager"), {"taskmgr"});
+    QAction* winetricks = menu->addAction(tr("Winetricks…"));
+    connect(winetricks, &QAction::triggered, this, &MainWindow::openWinetricks);
+    toolsBtn->setMenu(menu);
+    auto* stopBtn = new QPushButton(tr("Stop all processes"));
+    stopBtn->setToolTip(tr("Stops every Wine process of this prefix (wineserver -k, then kill)."));
+    connect(stopBtn, &QPushButton::clicked, this, &MainWindow::stopAll);
+    auto* folderBtn = new QPushButton(tr("Open folder"));
+    connect(folderBtn, &QPushButton::clicked, this, &MainWindow::openFolder);
+    auto* delBtn = new QPushButton(tr("Delete prefix"));
+    connect(delBtn, &QPushButton::clicked, this, &MainWindow::deletePrefix);
+    actions->addWidget(runBtn);
+    actions->addWidget(toolsBtn);
+    actions->addWidget(stopBtn);
+    actions->addWidget(folderBtn);
+    actions->addStretch(1);
+    actions->addWidget(delBtn);
+    v->addLayout(actions);
+
     // Components: "Disabled" by default; selecting a version applies it, "Disabled" removes it.
     auto* comps = new QGroupBox(tr("Components"));
     auto* grid = new QGridLayout(comps);
@@ -326,40 +364,9 @@ void MainWindow::buildUi()
     connect(m_envBtn, &QPushButton::clicked, this, &MainWindow::editEnv);
     v->addWidget(launch);
 
-    // Actions
-    auto* actions = new QHBoxLayout;
-    auto* runBtn = new QPushButton(tr("Run program…"));
-    connect(runBtn, &QPushButton::clicked, this, &MainWindow::runExe);
-    auto* toolsBtn = new QPushButton(tr("Tools"));
-    auto* menu = new QMenu(toolsBtn);
-    auto addTool = [&](const QString& text, const QStringList& args) {
-        QAction* a = menu->addAction(text);
-        connect(a, &QAction::triggered, this, [this, args] { runTool(args); });
-    };
-    addTool(tr("Explorer"), {"explorer"});
-    addTool(tr("Control panel"), {"control"});
-    addTool(tr("Wine configuration (winecfg)"), {"winecfg"});
-    addTool(tr("Registry editor (regedit)"), {"regedit"});
-    addTool(tr("Add/remove programs"), {"uninstaller"});
-    addTool(tr("Task manager"), {"taskmgr"});
-    QAction* winetricks = menu->addAction(tr("Winetricks…"));
-    connect(winetricks, &QAction::triggered, this, &MainWindow::openWinetricks);
-    toolsBtn->setMenu(menu);
-    auto* stopBtn = new QPushButton(tr("Stop all processes"));
-    stopBtn->setToolTip(tr("Stops every Wine process of this prefix (wineserver -k, then kill)."));
-    connect(stopBtn, &QPushButton::clicked, this, &MainWindow::stopAll);
-    auto* folderBtn = new QPushButton(tr("Open folder"));
-    connect(folderBtn, &QPushButton::clicked, this, &MainWindow::openFolder);
-    auto* delBtn = new QPushButton(tr("Delete prefix"));
-    connect(delBtn, &QPushButton::clicked, this, &MainWindow::deletePrefix);
-    actions->addWidget(runBtn);
-    actions->addWidget(toolsBtn);
-    actions->addWidget(stopBtn);
-    actions->addWidget(folderBtn);
-    actions->addStretch(1);
-    actions->addWidget(delBtn);
-    v->addLayout(actions);
-    v->addStretch(1);
+    // Programs of the prefix: the bottom panel, it takes the free space.
+    m_programs = new ProgramsPanel(&m_mgr);
+    v->addWidget(m_programs, 1);
 
     auto* scroll = new QScrollArea;
     scroll->setWidgetResizable(true);
@@ -485,6 +492,7 @@ void MainWindow::onSelected()
     const QString name = currentName();
     const auto po = m_mgr.find(name);
     m_details->setEnabled(po.has_value());
+    m_programs->setPrefix(po ? name : QString());
     if (!po) {
         m_name->clear();
         m_path->clear();

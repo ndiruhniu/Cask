@@ -129,5 +129,17 @@
   "Installation failed (code %1). See the output below.": "Установка не удалась (код %1). Подробности в выводе ниже.",
   "Installed": "Установлен",
   "Installing: %1": "Установка: %1",
-  "Cancelling…": "Отмена…"
+  "Cancelling…": "Отмена…",
+  "Programs": "Программы",
+  "Add program…": "Добавить программу…",
+  "No programs yet. Programs installed in this prefix appear here automatically, or add one with the button below.": "Пока нет программ. Программы, установленные в этом префиксе, появятся здесь автоматически, или добавьте программу кнопкой ниже.",
+  "Run": "Запустить",
+  "Stop": "Остановить",
+  "Run in terminal": "Запустить в терминале",
+  "Show in folder": "Показать папку",
+  "Remove from the list": "Убрать из списка",
+  "This program is already in the list.": "Эта программа уже есть в списке.",
+  "Exit code:": "Код выхода:",
+  "Press Enter to close this window.": "Нажмите Enter, чтобы закрыть окно.",
+  "No terminal emulator was found. Install one (for example konsole, gnome-terminal or xterm) or set the TERMINAL environment variable.": "Не найден эмулятор терминала. Установите его (например, konsole, gnome-terminal или xterm) или задайте переменную окружения TERMINAL."
 }

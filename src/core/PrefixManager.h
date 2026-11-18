@@ -52,6 +52,22 @@ public:
     bool launch(const QString& name, const QStringList& wineArgs, const QString& workDir, QString* err,
                 bool game = false);
 
+    // Same, in a terminal window: the output of the program is visible and the window stays open
+    // until Enter is pressed.
+    bool launchInTerminal(const QString& name, const QStringList& wineArgs, const QString& workDir, QString* err);
+
+    // The program list of a prefix (cask.json). `hidden` holds the paths that were removed by the user.
+    // Does not emit changed(): the window updates its own list.
+    bool setPrograms(const QString& name, const QList<Program>& programs, const QStringList& hidden, QString* err);
+    // Adds the programs installed in the prefix that are not in the list (and were not removed by the
+    // user). Returns true if the list changed. Does nothing while a background job runs.
+    bool syncPrograms(const QString& name);
+    // Lower-case image names (7zfm.exe) of the Wine processes of the prefix.
+    static QStringList runningImages(const QString& prefixPath);
+    // Terminates the processes of one program: SIGTERM, then SIGKILL for what is left after 3 seconds.
+    // Returns the number of processes signalled.
+    int stopProgram(const QString& prefixPath, const QString& imageName);
+
     // Wine arguments to launch a file: .exe directly, anything else (.msi, .bat, .lnk) via `start /unix`.
     static QStringList programArgs(const QString& file);
 
@@ -72,6 +88,14 @@ signals:
 
 private:
     bool checkIdle(QString* err) const;  // false (with an error) while a background job runs
+    struct LaunchSpec {
+        QString program;
+        QStringList args;
+        QProcessEnvironment env;
+    };
+    // The command (with GameMode/MangoHud wrappers when game) and the environment of a launch.
+    bool prepareLaunch(const QString& name, const QStringList& wineArgs, bool game, LaunchSpec* out, QString* err);
+    static QList<qint64> imageProcesses(const QString& prefixPath, const QString& imageName);
     int stopProcesses(const Prefix& p);  // returns how many processes were running before the stop
     void startJob(const Prefix& p, const Runner& r, const QStringList& args, const QProcessEnvironment& env,
                   const QString& okMsg, std::function<void(bool)> after = {}, const QString& workDir = {});

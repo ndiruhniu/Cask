@@ -17,6 +17,8 @@ class QSplitter;
 class QToolBar;
 class QWidget;
 
+class ProgramsPanel;
+
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
@@ -69,6 +71,7 @@ private:
     QSplitter* m_central = nullptr;
     QListWidget* m_list = nullptr;
     QWidget* m_details = nullptr;
+    ProgramsPanel* m_programs = nullptr;
     QLabel* m_name = nullptr;
     QLabel* m_path = nullptr;
     QLabel* m_arch = nullptr;

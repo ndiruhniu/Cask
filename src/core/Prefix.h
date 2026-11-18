@@ -1,8 +1,10 @@
 #pragma once
 
 #include "LaunchSettings.h"
+#include "Program.h"
 
 #include <QDateTime>
+#include <QList>
 #include <QMap>
 #include <QString>
 #include <QStringList>
@@ -25,6 +27,8 @@ struct Prefix {
     QDateTime created;
     QMap<QString, AppliedComponent> components;
     PrefixSettings settings;
+    QList<Program> programs;   // the list shown in the window, in the user's order
+    QStringList hiddenPrograms;  // stored paths the user removed: they are not added again automatically
 
     QString windowsDir() const { return path + "/drive_c/windows"; }
 
