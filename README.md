@@ -48,7 +48,8 @@ Cask/
   Click a name to rename it (the default is the file name), drag rows to reorder them, hover a row to see the
   path. Buttons: Run (turns into Stop while the program is running), Run in terminal (shows the Wine output),
   Programs found automatically disappear from the list when their file is deleted (the program was
-  uninstalled); programs you added yourself stay. Show in folder, Remove from the list (a removed program is not added again automatically; the list and the
+  uninstalled), and so does a program you removed from the list by hand (it returns if it is installed again);
+  programs you added yourself stay. Show in folder, Remove from the list (a removed program is not added again automatically; the list and the
   hidden entries are kept in `cask.json`).
 - The prefix list can be reordered by drag and drop. The order is remembered in
   `prefixes/.cask-order.json` and moves together with the prefixes.

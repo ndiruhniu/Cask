@@ -836,13 +836,25 @@ bool PrefixManager::syncPrograms(const QString& name)
     if (!p)
         return false;
 
+    bool changed = false;
+    // A hidden program whose file is gone (it was uninstalled) is forgotten too: if it is installed again,
+    // it appears in the list again. Only files inside the prefix are checked (another drive may be unmounted).
+    if (QFileInfo(p->path + "/drive_c").isDir()) {
+        for (int i = p->hiddenPrograms.size() - 1; i >= 0; --i) {
+            const QString& h = p->hiddenPrograms.at(i);
+            if (!QDir::isAbsolutePath(h) && !QFileInfo::exists(Programs::resolve(p->path, h))) {
+                p->hiddenPrograms.removeAt(i);
+                changed = true;
+            }
+        }
+    }
+
     QSet<QString> known;
     for (const Program& pr : std::as_const(p->programs))
         known.insert(Programs::resolve(p->path, pr.path).toLower());
     for (const QString& h : std::as_const(p->hiddenPrograms))
         known.insert(Programs::resolve(p->path, h).toLower());
 
-    bool changed = false;
     // Programs found automatically disappear when their file does (the program was uninstalled).
     // Only files inside the prefix are checked: a program on another drive may just be unmounted.
     if (QFileInfo(p->path + "/drive_c").isDir()) {
