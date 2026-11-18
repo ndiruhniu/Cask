@@ -60,6 +60,15 @@ bool removeTree(const QString& path)
     return QDir().rmdir(path) && ok;
 }
 
+// Adds a DLL override to WINEDLLOVERRIDES, keeping what is already set there.
+void addDllOverride(QProcessEnvironment& e, const QString& entry)
+{
+    const QString cur = e.value(QStringLiteral("WINEDLLOVERRIDES"));
+    if (cur.split(QLatin1Char(';')).contains(entry))
+        return;
+    e.insert(QStringLiteral("WINEDLLOVERRIDES"), cur.isEmpty() ? entry : cur + QLatin1Char(';') + entry);
+}
+
 }  // namespace
 
 PrefixManager::PrefixManager(QObject* parent) : QObject(parent) {}
@@ -264,8 +273,12 @@ QProcessEnvironment PrefixManager::makeEnv(const Prefix& p, const Runner& r, boo
     // The language Wine sees. Cask does not touch sync (ntsync etc.).
     LaunchSettings::applyLocale(e, p.settings.locale);
 
-    if (!forLaunch)
+    // Wine must not put its own or the programs' shortcuts into the user's menu and file associations
+    // (~/.local/share/applications/wine, mimeinfo.cache): the programs are listed in Cask itself.
+    if (!forLaunch) {
+        addDllOverride(e, QStringLiteral("winemenubuilder.exe=d"));
         return e;
+    }
 
     // The prefix's own variables. Variables managed by Cask (WINEPREFIX, PATH, language,
     // cache paths...) are not overridden by them. The rest, including WINEDEBUG (Cask only sets
@@ -274,6 +287,7 @@ QProcessEnvironment PrefixManager::makeEnv(const Prefix& p, const Runner& r, boo
         if (LaunchSettings::isValidEnvName(it.key()) && !LaunchSettings::isReservedEnvName(it.key()))
             e.insert(it.key(), it.value());
     }
+    addDllOverride(e, QStringLiteral("winemenubuilder.exe=d"));  // also if the prefix sets its own overrides
     return e;
 }
 
@@ -368,7 +382,7 @@ bool PrefixManager::create(const QString& name, const QString& runner, const QSt
     emit changed();
 
     QProcessEnvironment env = makeEnv(p, *r, false);
-    env.insert("WINEDLLOVERRIDES", "mscoree,mshtml=d");  // no Mono/Gecko dialogs
+    addDllOverride(env, QStringLiteral("mscoree,mshtml=d"));  // no Mono/Gecko dialogs
     startJob(p, *r, {"wineboot", "--init"}, env, tr("Prefix '%1' created").arg(name),
              [this, path](bool ok) {
                  if (ok)
