@@ -60,6 +60,30 @@ bool removeTree(const QString& path)
     return QDir().rmdir(path) && ok;
 }
 
+// Adds a DLL override to WINEDLLOVERRIDES, keeping what is already set there.
+void addDllOverride(QProcessEnvironment& e, const QString& entry)
+{
+    const QString cur = e.value(QStringLiteral("WINEDLLOVERRIDES"));
+    if (cur.split(QLatin1Char(';')).contains(entry))
+        return;
+    e.insert(QStringLiteral("WINEDLLOVERRIDES"), cur.isEmpty() ? entry : cur + QLatin1Char(';') + entry);
+}
+
+// A prefix folder: cask.json is removed last, so a prefix that could not be deleted completely stays in
+// the list (it is recognized by cask.json) and the deletion can be repeated.
+bool removePrefixDir(const QString& path)
+{
+    bool ok = true;
+    const auto entries =
+        QDir(path).entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot);
+    for (const QFileInfo& e : entries)
+        if (e.fileName() != QLatin1String("cask.json"))
+            ok = removeTree(e.absoluteFilePath()) && ok;
+    if (!ok)
+        return false;
+    return removeTree(path);
+}
+
 }  // namespace
 
 PrefixManager::PrefixManager(QObject* parent) : QObject(parent) {}
@@ -264,8 +288,12 @@ QProcessEnvironment PrefixManager::makeEnv(const Prefix& p, const Runner& r, boo
     // The language Wine sees. Cask does not touch sync (ntsync etc.).
     LaunchSettings::applyLocale(e, p.settings.locale);
 
-    if (!forLaunch)
+    // Wine must not put its own or the programs' shortcuts into the user's menu and file associations
+    // (~/.local/share/applications/wine, mimeinfo.cache): the programs are listed in Cask itself.
+    if (!forLaunch) {
+        addDllOverride(e, QStringLiteral("winemenubuilder.exe=d"));
         return e;
+    }
 
     // The prefix's own variables. Variables managed by Cask (WINEPREFIX, PATH, language,
     // cache paths...) are not overridden by them. The rest, including WINEDEBUG (Cask only sets
@@ -274,6 +302,7 @@ QProcessEnvironment PrefixManager::makeEnv(const Prefix& p, const Runner& r, boo
         if (LaunchSettings::isValidEnvName(it.key()) && !LaunchSettings::isReservedEnvName(it.key()))
             e.insert(it.key(), it.value());
     }
+    addDllOverride(e, QStringLiteral("winemenubuilder.exe=d"));  // also if the prefix sets its own overrides
     return e;
 }
 
@@ -330,7 +359,7 @@ bool PrefixManager::create(const QString& name, const QString& runner, const QSt
 {
     if (!checkIdle(err))
         return false;
-    static const QRegularExpression re(QStringLiteral("^[\\p{L}\\p{N}][\\p{L}\\p{N} _.\\-]{0,63}$"));
+    static const QRegularExpression re(QStringLiteral("^[\\p{L}\\p{N}][\\p{L}\\p{N} _.\\-]{0,63}\\z"));
     if (!re.match(name).hasMatch()) {
         setErr(err, tr("Invalid name. Letters, digits, space, _ . - are allowed (up to 64 characters)."));
         return false;
@@ -362,13 +391,14 @@ bool PrefixManager::create(const QString& name, const QString& runner, const QSt
     p.arch = arch;
     p.created = QDateTime::currentDateTime();
     if (!p.save()) {
+        QDir().rmdir(path);
         setErr(err, tr("Could not write cask.json"));
         return false;
     }
     emit changed();
 
     QProcessEnvironment env = makeEnv(p, *r, false);
-    env.insert("WINEDLLOVERRIDES", "mscoree,mshtml=d");  // no Mono/Gecko dialogs
+    addDllOverride(env, QStringLiteral("mscoree,mshtml=d"));  // no Mono/Gecko dialogs
     startJob(p, *r, {"wineboot", "--init"}, env, tr("Prefix '%1' created").arg(name),
              [this, path](bool ok) {
                  if (ok)
@@ -397,7 +427,7 @@ bool PrefixManager::remove(const QString& name, QString* err)
     // Stop all prefix processes so nothing is left in the folder being deleted.
     stopProcesses(*p);
 
-    if (!removeTree(p->path)) {
+    if (!removePrefixDir(p->path)) {
         setErr(err, tr("Not everything could be removed from %1").arg(p->path));
         emit changed();
         return false;
@@ -568,6 +598,7 @@ bool PrefixManager::applyComponent(const QString& name, const QString& type, con
         if (QFile::exists(dst) && !QFile::exists(dst + kBak))
             QFile::rename(dst, dst + kBak);  // keep the original once
         QFile::remove(dst);
+        a.files << it.rel;  // before the copy: a failed copy is rolled back with this file too
         if (!QFile::copy(it.src, dst)) {
             p.components.insert(type, a);
             restoreFiles(p, type);
@@ -577,7 +608,6 @@ bool PrefixManager::applyComponent(const QString& name, const QString& type, con
             return false;
         }
         QFile::setPermissions(dst, QFile::permissions(dst) | QFile::WriteOwner);
-        a.files << it.rel;
         // the file now belongs to this component (the last one applied wins)
         for (auto c = p.components.begin(); c != p.components.end(); ++c)
             c->files.removeAll(it.rel);
@@ -836,18 +866,42 @@ bool PrefixManager::syncPrograms(const QString& name)
     if (!p)
         return false;
 
+    bool changed = false;
+    // A hidden program whose file is gone (it was uninstalled) is forgotten too: if it is installed again,
+    // it appears in the list again. Only files inside the prefix are checked (another drive may be unmounted).
+    if (QFileInfo(p->path + "/drive_c").isDir()) {
+        for (int i = p->hiddenPrograms.size() - 1; i >= 0; --i) {
+            const QString& h = p->hiddenPrograms.at(i);
+            if (!QDir::isAbsolutePath(h) && !QFileInfo::exists(Programs::resolve(p->path, h))) {
+                p->hiddenPrograms.removeAt(i);
+                changed = true;
+            }
+        }
+    }
+
     QSet<QString> known;
     for (const Program& pr : std::as_const(p->programs))
         known.insert(Programs::resolve(p->path, pr.path).toLower());
     for (const QString& h : std::as_const(p->hiddenPrograms))
         known.insert(Programs::resolve(p->path, h).toLower());
 
-    bool changed = false;
+    // Programs found automatically disappear when their file does (the program was uninstalled).
+    // Only files inside the prefix are checked: a program on another drive may just be unmounted.
+    if (QFileInfo(p->path + "/drive_c").isDir()) {
+        for (int i = p->programs.size() - 1; i >= 0; --i) {
+            const Program& pr = p->programs.at(i);
+            if (pr.automatic && !QDir::isAbsolutePath(pr.path)
+                && !QFileInfo::exists(Programs::resolve(p->path, pr.path))) {
+                p->programs.removeAt(i);
+                changed = true;
+            }
+        }
+    }
     for (const QString& file : Programs::discover(p->path)) {
         if (known.contains(file.toLower()))
             continue;
         known.insert(file.toLower());
-        p->programs.append({QFileInfo(file).fileName(), Programs::store(p->path, file)});
+        p->programs.append({QFileInfo(file).fileName(), Programs::store(p->path, file), true});
         changed = true;
     }
     return changed && p->save();
@@ -900,9 +954,11 @@ int PrefixManager::stopProgram(const QString& prefixPath, const QString& imageNa
             ++n;
     if (n > 0) {
         // What ignores SIGTERM is finished off after a while (only processes that still belong to the program).
-        QTimer::singleShot(3000, this, [prefixPath, imageName] {
+        QTimer::singleShot(3000, this, [prefixPath, imageName, pids] {
+            // Only the processes that were asked to stop: a new instance started meanwhile is left alone.
             for (qint64 pid : imageProcesses(prefixPath, imageName))
-                ::kill(static_cast<pid_t>(pid), SIGKILL);
+                if (pids.contains(pid))
+                    ::kill(static_cast<pid_t>(pid), SIGKILL);
         });
     }
     return n;

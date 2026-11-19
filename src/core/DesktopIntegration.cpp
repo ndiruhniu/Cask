@@ -55,6 +55,8 @@ QByteArray desktopContent(const QString& exePath)
                        "Name=Cask\n"
                        "GenericName=Wine prefix manager\n"
                        "GenericName[ru]=Менеджер префиксов Wine\n"
+                       "Comment=Minimalist Wine prefix manager\n"
+                       "Comment[ru]=Минималистичный менеджер префиксов Wine\n"
                        "Exec=%1 %f\n"
                        "Icon=wine\n"
                        "Terminal=false\n"
@@ -160,7 +162,8 @@ bool install(const QString& appsDir, const QString& exePath, QString* err)
 
     const QString cachePath = appsDir + QStringLiteral("/mimeinfo.cache");
     QByteArray cur;
-    readFile(cachePath, &cur);
+    if (!readFile(cachePath, &cur))
+        return true;  // no cache: the desktop reads the .desktop files itself; do not create a cache of our own
     return writeIfChanged(cachePath, updateMimeCache(cur, true), err);
 }
 

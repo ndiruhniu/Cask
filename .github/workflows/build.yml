@@ -149,10 +149,13 @@ jobs:
           mkdir -p "$HOME" "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
           weston --backend=headless --socket=wl-test --idle-time=0 >/tmp/weston.log 2>&1 &
           sleep 3
-          export WAYLAND_DISPLAY=wl-test QT_QPA_PLATFORM=wayland
+          export WAYLAND_DISPLAY=wl-test QT_QPA_PLATFORM=wayland CASK_SCREENSHOT=/tmp/shot.png
           status=0
-          timeout 5 Cask/cask || status=$?
-          [ "$status" -eq 124 ] || { echo "Cask did not start (exit code $status)"; cat /tmp/weston.log; exit 1; }
+          timeout 20 Cask/cask 2>/tmp/cask.log || status=$?
+          cat /tmp/cask.log
+          [ "$status" -eq 0 ] || { echo "Cask did not start (exit code $status)"; cat /tmp/weston.log; exit 1; }
+          grep -q '^platform: wayland' /tmp/cask.log || { echo "Cask did not use the Wayland platform"; exit 1; }
+          echo "-----BEGIN SCREENSHOT-----"; base64 -w0 /tmp/shot.png; echo; echo "-----END SCREENSHOT-----"
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

@@ -2,6 +2,8 @@
 #include "ui/PrefixPickerDialog.h"
 
 #include <QApplication>
+#include <QTimer>
+#include <cstdio>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -70,5 +72,16 @@ int main(int argc, char* argv[])
 
     MainWindow w;
     w.show();
+
+    // For CI: CASK_SCREENSHOT=<file> saves a picture of the window, prints the platform in use, and quits.
+    const QString shot = qEnvironmentVariable("CASK_SCREENSHOT");
+    if (!shot.isEmpty()) {
+        QTimer::singleShot(2000, &app, [&app, &w, shot] {
+            const bool ok = w.grab().save(shot);
+            std::fprintf(stderr, "platform: %s\nscreenshot: %s\n", qPrintable(QGuiApplication::platformName()),
+                         ok ? "saved" : "failed");
+            app.exit(ok ? 0 : 1);
+        });
+    }
     return app.exec();
 }

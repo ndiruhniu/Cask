@@ -47,10 +47,15 @@ Cask/
   (Wine's own programs, the Windows folder and uninstallers are left out). Add your own with "Add program...".
   Click a name to rename it (the default is the file name), drag rows to reorder them, hover a row to see the
   path. Buttons: Run (turns into Stop while the program is running), Run in terminal (shows the Wine output),
-  Show in folder, Remove from the list (a removed program is not added again automatically; the list and the
+  Programs found automatically disappear from the list when their file is deleted (the program was
+  uninstalled), and so does a program you removed from the list by hand (it returns if it is installed again);
+  programs you added yourself stay. Show in folder, Remove from the list (a removed program is not added again automatically; the list and the
   hidden entries are kept in `cask.json`).
 - The Cask window runs natively on Wayland (in a Wayland session) and on X11. If the Wayland plugin cannot
   start, Cask falls back to X11 (XWayland). To force one: `QT_QPA_PLATFORM=wayland` or `QT_QPA_PLATFORM=xcb`.
+- Wine's `winemenubuilder` is disabled (`WINEDLLOVERRIDES=winemenubuilder.exe=d`): installers do not add
+  shortcuts or file associations to your system menu (`~/.local/share/applications/wine`). The installed
+  programs are listed in Cask instead. Entries that Wine created earlier are not removed.
 - The prefix list can be reordered by drag and drop. The order is remembered in
   `prefixes/.cask-order.json` and moves together with the prefixes.
 - The Wine profile folders (Desktop, Documents, Downloads, Music, Pictures, Videos...) do not point to your
