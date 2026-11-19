@@ -158,7 +158,7 @@ stdenv.mkDerivation (finalAttrs: {
       name = "cask";
       desktopName = "Cask";
       genericName = "Wine prefix manager";
-      comment = "Manage Wine prefixes";
+      comment = "Minimalist Wine prefix manager";
       exec = "cask %f";
       icon = "wine";
       categories = [ "Utility" ];
