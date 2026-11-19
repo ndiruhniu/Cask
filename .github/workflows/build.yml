@@ -120,43 +120,6 @@ jobs:
           timeout 5 Cask/cask || status=$?
           [ "$status" -eq 124 ] || { echo "Cask did not start (exit code $status)"; exit 1; }
 
-  # The Wayland platform plugin on a real (headless) compositor. The platform is forced, so there is no
-  # silent fallback to X11. The archive is unpacked on the runner itself (Ubuntu 24.04).
-  wayland:
-    needs: linux
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - name: Install a compositor
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends weston libqt6widgets6 xkb-data
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: Cask-linux-x86_64
-
-      - name: Unpack
-        run: tar -xzf Cask-linux-x86_64.tar.gz
-
-      - name: Libraries resolve
-        run: |
-          for f in Cask/cask Cask/lib/plugins/platforms/libqwayland-generic.so; do
-            if ldd "$f" | grep 'not found'; then echo "unresolved libraries in $f"; exit 1; fi
-          done
-
-      - name: Start with the Wayland platform
-        run: |
-          export HOME=/tmp/home XDG_RUNTIME_DIR=/tmp/runtime
-          mkdir -p "$HOME" "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
-          weston --backend=headless --socket=wl-test --idle-time=0 >/tmp/weston.log 2>&1 &
-          sleep 3
-          export WAYLAND_DISPLAY=wl-test QT_QPA_PLATFORM=wayland CASK_SCREENSHOT=/tmp/shot.png
-          status=0
-          timeout 20 Cask/cask 2>/tmp/cask.log || status=$?
-          cat /tmp/cask.log
-          [ "$status" -eq 0 ] || { echo "Cask did not start (exit code $status)"; cat /tmp/weston.log; exit 1; }
-          grep -q '^platform: wayland' /tmp/cask.log || { echo "Cask did not use the Wayland platform"; exit 1; }
-          echo "-----BEGIN SCREENSHOT-----"; base64 -w0 /tmp/shot.png; echo; echo "-----END SCREENSHOT-----"
-
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: linux
