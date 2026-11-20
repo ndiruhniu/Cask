@@ -83,6 +83,7 @@ private:
     QComboBox* m_localeBox = nullptr;
     QCheckBox* m_gamemode = nullptr;
     QCheckBox* m_mangohud = nullptr;
+    QCheckBox* m_discreteGpu = nullptr;
     QPushButton* m_envBtn = nullptr;
     QMap<QString, QString> m_env;
     bool m_loading = false;  // true while widgets are being filled from the prefix (do not save)

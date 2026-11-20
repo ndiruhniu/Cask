@@ -56,6 +56,10 @@ Cask/
 - Wine's `winemenubuilder` is disabled (`WINEDLLOVERRIDES=winemenubuilder.exe=d`): installers do not add
   shortcuts or file associations to your system menu (`~/.local/share/applications/wine`). The installed
   programs are listed in Cask instead. Entries that Wine created earlier are not removed.
+- Launch settings: "Discrete GPU" for laptops with two graphics cards (sets `DRI_PRIME=1`, or the NVIDIA PRIME
+  render offload variables when the proprietary NVIDIA driver is loaded). Programs also get `WINE_LARGE_ADDRESS_AWARE=1`
+  and `STAGING_SHARED_MEMORY=1` (used by Wine-staging builds, ignored by others); set them to `0` in the prefix's
+  environment variables to turn them off.
 - The prefix list can be reordered by drag and drop. The order is remembered in
   `prefixes/.cask-order.json` and moves together with the prefixes.
 - The Wine profile folders (Desktop, Documents, Downloads, Music, Pictures, Videos...) do not point to your

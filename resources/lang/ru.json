@@ -142,5 +142,7 @@
   "Press Enter to close this window.": "Нажмите Enter, чтобы закрыть окно.",
   "No terminal emulator was found. Install one (for example konsole, gnome-terminal or xterm) or set the TERMINAL environment variable.": "Не найден эмулятор терминала. Установите его (например, konsole, gnome-terminal или xterm) или задайте переменную окружения TERMINAL.",
   "No programs yet": "Пока нет программ",
-  "Programs installed in this prefix appear here automatically. You can also add one with the button below.": "Программы, установленные в этом префиксе, появляются здесь автоматически. Программу можно добавить и кнопкой ниже."
+  "Programs installed in this prefix appear here automatically. You can also add one with the button below.": "Программы, установленные в этом префиксе, появляются здесь автоматически. Программу можно добавить и кнопкой ниже.",
+  "Discrete GPU": "Дискретная видеокарта",
+  "For laptops with two graphics cards: programs are run on the discrete GPU (DRI_PRIME=1, or the NVIDIA PRIME render offload variables).": "Для ноутбуков с двумя видеокартами: программы запускаются на дискретной видеокарте (DRI_PRIME=1 или переменные NVIDIA PRIME render offload)."
 }

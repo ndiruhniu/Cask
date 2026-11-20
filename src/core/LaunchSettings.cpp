@@ -4,6 +4,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcessEnvironment>
@@ -48,6 +49,17 @@ const QStringList& reservedEnvNames()
 bool isReservedEnvName(const QString& name)
 {
     return reservedEnvNames().contains(name);
+}
+
+void applyDiscreteGpu(QProcessEnvironment& env)
+{
+    if (QFileInfo::exists(QStringLiteral("/proc/driver/nvidia"))) {  // the proprietary NVIDIA driver is loaded
+        env.insert(QStringLiteral("__NV_PRIME_RENDER_OFFLOAD"), QStringLiteral("1"));
+        env.insert(QStringLiteral("__VK_LAYER_NV_optimus"), QStringLiteral("NVIDIA_only"));
+        env.insert(QStringLiteral("__GLX_VENDOR_LIBRARY_NAME"), QStringLiteral("nvidia"));
+    } else {
+        env.insert(QStringLiteral("DRI_PRIME"), QStringLiteral("1"));
+    }
 }
 
 void applyLocale(QProcessEnvironment& env, const QString& locale)

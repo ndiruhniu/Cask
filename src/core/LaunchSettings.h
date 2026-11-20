@@ -11,11 +11,13 @@ struct PrefixSettings {
     QString locale;                          // empty = system language, otherwise e.g. ru_RU.UTF-8
     bool gamemode = false;                   // run programs via gamemoderun
     bool mangohud = false;                   // run programs via mangohud
+    bool discreteGpu = false;                // use the discrete GPU of a laptop with two graphics cards
     QMap<QString, QString> env;              // custom environment variables
 
     bool operator==(const PrefixSettings& o) const
     {
-        return locale == o.locale && gamemode == o.gamemode && mangohud == o.mangohud && env == o.env;
+        return locale == o.locale && gamemode == o.gamemode && mangohud == o.mangohud && discreteGpu == o.discreteGpu
+               && env == o.env;
     }
     bool operator!=(const PrefixSettings& o) const { return !(*this == o); }
 };
@@ -32,6 +34,10 @@ bool isReservedEnvName(const QString& name);
 
 // LANG and LC_ALL: these are what Wine reads to choose its language.
 void applyLocale(QProcessEnvironment& env, const QString& locale);
+
+// Asks the system to use the discrete GPU: NVIDIA PRIME render offload with the proprietary NVIDIA driver,
+// DRI_PRIME=1 (Mesa: AMD, Intel, Nouveau) otherwise.
+void applyDiscreteGpu(QProcessEnvironment& env);
 
 QString gamemodeBinary();    // path to gamemoderun or empty
 QString mangohudBinary();    // path to mangohud or empty

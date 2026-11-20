@@ -345,9 +345,13 @@ void MainWindow::buildUi()
                                      .arg(LaunchSettings::mangohudDir() + QStringLiteral("/lib64"))
                                : tr("Programs started with 'Run program…' are launched through mangohud. "
                                     "Configure it with MANGOHUD_CONFIG in the environment variables."));
+    m_discreteGpu = new QCheckBox(tr("Discrete GPU"));
+    m_discreteGpu->setToolTip(tr("For laptops with two graphics cards: programs are run on the discrete GPU "
+                                 "(DRI_PRIME=1, or the NVIDIA PRIME render offload variables)."));
     auto* wrappers = new QHBoxLayout;
     wrappers->addWidget(m_gamemode);
     wrappers->addWidget(m_mangohud);
+    wrappers->addWidget(m_discreteGpu);
     wrappers->addStretch(1);
     lf->addRow(wrappers);
 
@@ -359,6 +363,7 @@ void MainWindow::buildUi()
     connect(m_localeBox->lineEdit(), &QLineEdit::editingFinished, this, [this] { saveSettings(); });
     connect(m_gamemode, &QCheckBox::toggled, this, [this] { saveSettings(); });
     connect(m_mangohud, &QCheckBox::toggled, this, [this] { saveSettings(); });
+    connect(m_discreteGpu, &QCheckBox::toggled, this, [this] { saveSettings(); });
     connect(m_envBtn, &QPushButton::clicked, this, &MainWindow::editEnv);
     v->addWidget(launch);
 
@@ -507,6 +512,7 @@ void MainWindow::onSelected()
         setLocaleValue(QString());
         m_gamemode->setChecked(false);
         m_mangohud->setChecked(false);
+        m_discreteGpu->setChecked(false);
         m_loading = false;
         return;
     }
@@ -555,6 +561,7 @@ void MainWindow::onSelected()
     setLocaleValue(p.settings.locale);
     m_gamemode->setChecked(p.settings.gamemode);
     m_mangohud->setChecked(p.settings.mangohud);
+    m_discreteGpu->setChecked(p.settings.discreteGpu);
     m_env = p.settings.env;
     updateEnvButton();
     m_loading = false;
@@ -598,6 +605,7 @@ void MainWindow::saveSettings()
     s.locale = localeValue();
     s.gamemode = m_gamemode->isChecked();
     s.mangohud = m_mangohud->isChecked();
+    s.discreteGpu = m_discreteGpu->isChecked();
     s.env = m_env;
 
     QString err;

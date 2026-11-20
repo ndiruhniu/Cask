@@ -295,6 +295,15 @@ QProcessEnvironment PrefixManager::makeEnv(const Prefix& p, const Runner& r, boo
         return e;
     }
 
+    // Wine-staging variables (ignored by other builds): 32-bit programs may use more than 2 GB of address
+    // space, and shared memory with wineserver. Defaults: the prefix's own variables below can change them.
+    if (!e.contains("WINE_LARGE_ADDRESS_AWARE"))
+        e.insert("WINE_LARGE_ADDRESS_AWARE", "1");
+    if (!e.contains("STAGING_SHARED_MEMORY"))
+        e.insert("STAGING_SHARED_MEMORY", "1");
+    if (p.settings.discreteGpu)
+        LaunchSettings::applyDiscreteGpu(e);
+
     // The prefix's own variables. Variables managed by Cask (WINEPREFIX, PATH, language,
     // cache paths...) are not overridden by them. The rest, including WINEDEBUG (Cask only sets
     // a default value for it), are applied.

@@ -83,6 +83,8 @@
   "MangoHud": "MangoHud",
   "mangohud was not found. Install the 'mangohud' package or put its files into %1.": "mangohud was not found. Install the 'mangohud' package or put its files into %1.",
   "Programs started with 'Run program…' are launched through mangohud. Configure it with MANGOHUD_CONFIG in the environment variables.": "Programs started with 'Run program…' are launched through mangohud. Configure it with MANGOHUD_CONFIG in the environment variables.",
+  "Discrete GPU": "Discrete GPU",
+  "For laptops with two graphics cards: programs are run on the discrete GPU (DRI_PRIME=1, or the NVIDIA PRIME render offload variables).": "For laptops with two graphics cards: programs are run on the discrete GPU (DRI_PRIME=1, or the NVIDIA PRIME render offload variables).",
   "Environment": "Environment",
   "Edit variables…": "Edit variables…",
   "Edit variables (%1)…": "Edit variables (%1)…",
