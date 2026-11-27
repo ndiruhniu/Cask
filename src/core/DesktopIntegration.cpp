@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QProcess>
 #include <QSaveFile>
 #include <QStandardPaths>
 
@@ -162,8 +163,19 @@ bool install(const QString& appsDir, const QString& exePath, QString* err)
 
     const QString cachePath = appsDir + QStringLiteral("/mimeinfo.cache");
     QByteArray cur;
-    if (!readFile(cachePath, &cur))
-        return true;  // no cache: the desktop reads the .desktop files itself; do not create a cache of our own
+    if (!readFile(cachePath, &cur)) {
+        // No cache yet. A cache with only our entries would hide every other launcher of this folder, so
+        // let the system tool build the complete one (it indexes all .desktop files, ours included).
+        const QString tool = QStandardPaths::findExecutable(QStringLiteral("update-desktop-database"));
+        if (!tool.isEmpty()) {
+            QProcess p;
+            p.start(tool, {appsDir});
+            if (!p.waitForFinished(10000))
+                p.kill();
+        }
+        if (!readFile(cachePath, &cur))
+            return true;  // no tool (desktop-file-utils) or it failed: the .desktop file alone is what we have
+    }
     return writeIfChanged(cachePath, updateMimeCache(cur, true), err);
 }
 
