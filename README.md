@@ -51,8 +51,6 @@ Cask/
   uninstalled), and so does a program you removed from the list by hand (it returns if it is installed again);
   programs you added yourself stay. Show in folder, Remove from the list (a removed program is not added again automatically; the list and the
   hidden entries are kept in `cask.json`).
-- The Cask window runs natively on Wayland (in a Wayland session) and on X11. If the Wayland plugin cannot
-  start, Cask falls back to X11 (XWayland). To force one: `QT_QPA_PLATFORM=wayland` or `QT_QPA_PLATFORM=xcb`.
 - Wine's `winemenubuilder` is disabled (`WINEDLLOVERRIDES=winemenubuilder.exe=d`): installers do not add
   shortcuts or file associations to your system menu (`~/.local/share/applications/wine`). The installed
   programs are listed in Cask instead. Entries that Wine created earlier are not removed.

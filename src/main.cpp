@@ -21,13 +21,8 @@ int main(int argc, char* argv[])
     if (QFileInfo(exeDir + QStringLiteral("/lib/plugins")).isDir())
         QCoreApplication::setLibraryPaths({exeDir + QStringLiteral("/lib/plugins")});
 
-    // In a Wayland session use Wayland, with X11 (XWayland) as the fallback if the plugin cannot start.
-    if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM") && !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY"))
-        qputenv("QT_QPA_PLATFORM", "wayland;xcb");
-
     QApplication app(argc, argv);
     app.setApplicationName("Cask");
-    app.setDesktopFileName(QStringLiteral("cask"));  // the app id on Wayland: matches cask.desktop (icon, grouping)
     app.setApplicationVersion("0.1.0");
 
     Config& cfg = Config::instance();

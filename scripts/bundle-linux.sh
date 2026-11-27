@@ -8,21 +8,16 @@ DIR="$(cd "$1" && pwd)"
 BIN="$DIR/cask"
 LIB="$DIR/lib"
 PLUG="$LIB/plugins"
-mkdir -p "$LIB" "$PLUG/platforms" "$PLUG/xcbglintegrations" "$PLUG/wayland-shell-integration" "$PLUG/wayland-decoration-client"
+mkdir -p "$LIB" "$PLUG/platforms" "$PLUG/xcbglintegrations"
 
 QT_PLUGINS="$(find /usr/lib -type d -path '*/qt6/plugins' -print -quit)"
 [ -n "$QT_PLUGINS" ] || { echo "Qt plugins dir not found" >&2; exit 1; }
 
 # Platform plugins
-for p in libqxcb.so libqoffscreen.so libqwayland-generic.so; do
+for p in libqxcb.so libqoffscreen.so; do
   [ -f "$QT_PLUGINS/platforms/$p" ] && cp -L "$QT_PLUGINS/platforms/$p" "$PLUG/platforms/"
 done
 cp -L "$QT_PLUGINS"/xcbglintegrations/*.so "$PLUG/xcbglintegrations/" 2>/dev/null || true
-# Wayland: window management (xdg-shell) and window decorations. The GL integrations are not needed:
-# Cask is a Widgets app and draws with the shared-memory backing store.
-cp -L "$QT_PLUGINS"/wayland-shell-integration/*.so "$PLUG/wayland-shell-integration/" 2>/dev/null || true
-cp -L "$QT_PLUGINS"/wayland-decoration-client/*.so "$PLUG/wayland-decoration-client/" 2>/dev/null || true
-[ -f "$PLUG/platforms/libqwayland-generic.so" ] || echo "warning: no Wayland platform plugin (install qt6-wayland)" >&2
 
 # Which libraries to bundle (the rest, e.g. glibc/libGL, comes from the system).
 # libxkbcommon and libxkbcommon-x11 must come from the same build: the x11 part uses the internals of the
@@ -31,7 +26,6 @@ want() {
   case "$(basename "$1")" in
     libQt6*|libicu*|libdouble-conversion*|libpcre2-16*|libmd4c*|libb2*) return 0 ;;
     libxcb-*|libxkbcommon*) return 0 ;;  # all xcb extension libraries of the plugin (not libxcb.so itself)
-    libwayland-client*|libwayland-cursor*) return 0 ;;  # small; the protocol is negotiated with the compositor
     *) return 1 ;;
   esac
 }
@@ -47,7 +41,7 @@ collect() {
 # Several passes to pull in dependencies of dependencies
 for _ in 1 2 3; do
   collect "$BIN"
-  for f in "$PLUG"/platforms/*.so "$PLUG"/xcbglintegrations/*.so "$PLUG"/wayland-shell-integration/*.so "$PLUG"/wayland-decoration-client/*.so "$LIB"/*.so*; do
+  for f in "$PLUG"/platforms/*.so "$PLUG"/xcbglintegrations/*.so "$LIB"/*.so*; do
     [ -f "$f" ] && collect "$f"
   done
 done
@@ -55,7 +49,7 @@ done
 # RPATH: the binary looks in ./lib, libraries next to each other, plugins (lib/plugins/<kind>/) in ../..
 patchelf --set-rpath '$ORIGIN/lib' "$BIN"
 for f in "$LIB"/*.so*; do patchelf --set-rpath '$ORIGIN' "$f"; done
-for f in "$PLUG"/platforms/*.so "$PLUG"/xcbglintegrations/*.so "$PLUG"/wayland-shell-integration/*.so "$PLUG"/wayland-decoration-client/*.so; do
+for f in "$PLUG"/platforms/*.so "$PLUG"/xcbglintegrations/*.so; do
   [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/../..' "$f"
 done
 
@@ -63,7 +57,7 @@ done
 
 # Every binary we ship must resolve all its libraries, including the Qt plugins
 # (an unresolved plugin dependency only shows up at run time as "could not load the platform plugin").
-for f in "$BIN" "$PLUG"/platforms/*.so "$PLUG"/xcbglintegrations/*.so "$PLUG"/wayland-shell-integration/*.so "$PLUG"/wayland-decoration-client/*.so; do
+for f in "$BIN" "$PLUG"/platforms/*.so "$PLUG"/xcbglintegrations/*.so; do
   [ -f "$f" ] || continue
   if ldd "$f" | grep -q 'not found'; then
     echo "Unresolved libraries in $f:" >&2
