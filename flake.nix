@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     # This branch holds only the Nix files; the program itself is taken from `main`.
     cask-src = {
-      url = "github:ndiruhniu/cask/v0.1.4";
+      url = "github:ndiruhniu/cask/v0.1.5";
       flake = false;
     };
   };
@@ -48,7 +48,7 @@
       });
 
       # nix develop: everything to build, debug and run Cask. Run it inside a checkout of `main`
-      # (e.g. `nix develop github:ndiruhniu/cask/v0.1.4
+      # (e.g. `nix develop github:ndiruhniu/cask/v0.1.5
       #   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug && cmake --build build && build/Cask/cask
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
