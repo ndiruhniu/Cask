@@ -471,7 +471,9 @@ bool PrefixManager::setRunner(const QString& name, const QString& runner, QStrin
         return false;
     }
     emit changed();
-    startJob(*p, *r, {"wineboot", "-u"}, makeEnv(*p, *r, false),
+    QProcessEnvironment env = makeEnv(*p, *r, false);
+    addDllOverride(env, QStringLiteral("mscoree,mshtml=d"));  // no Mono/Gecko installation dialogs
+    startJob(*p, *r, {"wineboot", "-u"}, env,
              tr("Wine of prefix '%1' changed to %2").arg(name, runner), [this, path = p->path](bool ok) {
                  if (ok)
                      unlinkUserDirs(path);  // wineboot -u may have recreated the links
