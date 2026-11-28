@@ -3,16 +3,16 @@
     "cask-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1795756558,
-        "narHash": "sha256-/Ym/EH8tFfyrV57s9cSLQYOXvVMLP1uvAzHl8ojp3K0=",
+        "lastModified": 1795862974,
+        "narHash": "sha256-hcS+pc/Fs2vX9Wk6TXFzjOku4PQqBmZhtjXPO/iqtwg=",
         "owner": "ndiruhniu",
         "repo": "cask",
-        "rev": "69905e4ee028edc6bcc0aa60760d824f47ee6020",
+        "rev": "7b72bb0f4b3d8fbf91fe9af9c9878b5963e5b418",
         "type": "github"
       },
       "original": {
         "owner": "ndiruhniu",
-        "ref": "v0.1.6",
+        "ref": "v0.1.7",
         "repo": "cask",
         "type": "github"
       }
